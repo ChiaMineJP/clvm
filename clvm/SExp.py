@@ -1,5 +1,5 @@
 import io
-import typing
+from typing import Union, Tuple, Any, Optional
 
 from blspy import G1Element
 
@@ -15,7 +15,7 @@ from .casts import (
 from .serialize import sexp_to_stream
 
 
-CastableType = typing.Union[
+CastableType = Union[
     "SExp",
     "CLVMObject",
     bytes,
@@ -24,21 +24,21 @@ CastableType = typing.Union[
     None,
     G1Element,
     list,
-    typing.Tuple[typing.Any, typing.Any],
+    Tuple[Any, Any],
 ]
 
 
 NULL = b""
 
 
-def looks_like_clvm_object(o: typing.Any) -> bool:
+def looks_like_clvm_object(o: Any) -> bool:
     d = dir(o)
     return "atom" in d and "pair" in d
 
 
 # this function recognizes some common types and turns them into plain bytes,
 def convert_atom_to_bytes(
-    v: typing.Union[bytes, str, int, G1Element, None, list],
+    v: Union[bytes, str, int, G1Element, None, list],
 ) -> bytes:
 
     if isinstance(v, bytes):
@@ -136,22 +136,22 @@ class SExp:
     __null__: "SExp"
 
     # the underlying object implementing the clvm object protocol
-    atom: typing.Optional[bytes]
+    atom: Optional[bytes]
 
     # this is a tuple of the otherlying CLVMObject-like objects. i.e. not
     # SExp objects with higher level functions, or None
-    pair: typing.Optional[typing.Tuple[typing.Any, typing.Any]]
+    pair: Optional[Tuple[Any, Any]]
 
     def __init__(self, obj):
         self.atom = obj.atom
         self.pair = obj.pair
 
     # this returns a tuple of two SExp objects, or None
-    def as_pair(self) -> typing.Tuple["SExp", "SExp"]:
+    def as_pair(self) -> Union[Tuple["SExp", "SExp"], None]:
         pair = self.pair
         if pair is None:
             return pair
-        return (self.__class__(pair[0]), self.__class__(pair[1]))
+        return self.__class__(pair[0]), self.__class__(pair[1])
 
     # TODO: deprecate this. Same as .atom property
     def as_atom(self):
@@ -173,15 +173,15 @@ class SExp:
         return f.getvalue()
 
     @classmethod
-    def to(class_, v: CastableType) -> "SExp":
-        if isinstance(v, class_):
+    def to(cls, v: CastableType) -> "SExp":
+        if isinstance(v, cls):
             return v
 
         if looks_like_clvm_object(v):
-            return class_(v)
+            return cls(v)
 
         # this will lazily convert elements
-        return class_(to_sexp_type(v))
+        return cls(to_sexp_type(v))
 
     def cons(self, right):
         return self.to((self, right))
@@ -199,8 +199,8 @@ class SExp:
         raise EvalError("rest of non-cons", self)
 
     @classmethod
-    def null(class_):
-        return class_.__null__
+    def null(cls):
+        return cls.__null__
 
     def as_iter(self):
         v = self
